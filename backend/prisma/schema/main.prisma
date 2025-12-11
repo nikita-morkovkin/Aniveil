@@ -1,6 +1,5 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -49,7 +48,7 @@ model Anime {
   favorites Favorite[]
 
   @@index([title])
-  @@map("animes")
+  @@map("anime")
 }
 
 model Episode {

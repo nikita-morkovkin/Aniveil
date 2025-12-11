@@ -8,6 +8,7 @@ enum VideoQualityType {
   Q_360P
   Q_480P
   Q_720P
+  Q_1080P
 }
 
 enum Genre {
