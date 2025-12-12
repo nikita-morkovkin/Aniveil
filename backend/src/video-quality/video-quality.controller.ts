@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -15,13 +16,17 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import { Public, Roles } from '../auth/decorators';
-import { Role, VideoQualityType } from '../enums';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { VideoQualityType } from '../enums';
 import { CreateVideoQualityDto } from './dto/create-video-quality.dto';
 import { VideoQualityResponseDto } from './dto/video-quality-response.dto';
 import { VideoQualityService } from './video-quality.service';
 
 @ApiTags('Video Qualities - By Episode')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('episodes')
 export class VideoQualityController {
   constructor(private readonly videoQualityService: VideoQualityService) {}
@@ -86,6 +91,7 @@ export class VideoQualityController {
 }
 
 @ApiTags('Video Qualities - By ID')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('video-qualities')
 export class VideoQualityByIdController {
   constructor(private readonly videoQualityService: VideoQualityService) {}

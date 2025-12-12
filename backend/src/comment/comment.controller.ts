@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,6 +20,8 @@ import {
 import type { User } from '@prisma/client';
 import { Role } from '@prisma/client';
 import { CurrentUser, Public, Roles } from '../auth/decorators';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { CommentService } from './comment.service';
 import { CommentFilterDto } from './dto/comment-filter.dto';
 import { CommentResponseDto } from './dto/comment-response.dto';
@@ -26,6 +29,7 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 
 @ApiTags('Comments - By Anime')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('anime')
 export class CommentController {
   constructor(private readonly commentService: CommentService) {}
@@ -79,6 +83,7 @@ export class CommentController {
 }
 
 @ApiTags('Comments - By ID')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('comments')
 export class CommentByIdController {
   constructor(private readonly commentService: CommentService) {}

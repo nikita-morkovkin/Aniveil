@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -16,8 +17,11 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role, VideoQualityType } from '../enums';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { VideoQualityType } from '../enums';
 import {
   ConversionResultDto,
   ConversionStatusDto,
@@ -25,6 +29,7 @@ import {
 import { VideoProcessorService } from './video-processor.service';
 
 @ApiTags('Video Processor')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('video-processor')
 export class VideoProcessorController {
   constructor(private readonly videoProcessor: VideoProcessorService) {}

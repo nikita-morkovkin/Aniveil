@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -15,14 +16,17 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import { Public, Roles } from '../auth/decorators';
-import { Role } from '../enums';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateEpisodeDto } from './dto/create-episode.dto';
 import { EpisodeResponseDto } from './dto/episode-response.dto';
 import { UpdateEpisodeDto } from './dto/update-episode.dto';
 import { EpisodeService } from './episode.service';
 
 @ApiTags('Episodes - By Anime')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('anime')
 export class EpisodeController {
   constructor(private readonly episodeService: EpisodeService) {}
@@ -60,6 +64,7 @@ export class EpisodeController {
 }
 
 @ApiTags('Episodes - By ID')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('episodes')
 export class EpisodeByIdController {
   constructor(private readonly episodeService: EpisodeService) {}

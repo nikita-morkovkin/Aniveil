@@ -20,6 +20,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -43,7 +44,7 @@ import { S3Service } from './s3.service';
 @ApiTags('S3 Storage (Admin)')
 @Controller('s3')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('MODERATOR', 'ADMIN')
+@Roles(Role.MODERATOR, Role.ADMIN)
 @ApiBearerAuth()
 export class S3AdminController {
   constructor(private readonly s3Service: S3Service) {}
@@ -116,7 +117,7 @@ export class S3AdminController {
   }
 
   @Delete('anime/:animeId')
-  @Roles('ADMIN')
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Удалить все файлы аниме (только ADMIN)' })
   @ApiResponse({ status: 200, type: DeleteResultDto })
   async deleteAnime(

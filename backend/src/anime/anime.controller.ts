@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   UploadedFiles,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -22,6 +23,8 @@ import {
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Public, Roles } from '../auth/decorators';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { AnimeService } from './anime.service';
 import { AnimeFilterDto } from './dto/anime-filter.dto';
 import { AnimeResponseDto } from './dto/anime-response.dto';
@@ -29,6 +32,7 @@ import { CreateAnimeDto } from './dto/create-anime.dto';
 import { UpdateAnimeDto } from './dto/update-anime.dto';
 
 @ApiTags('Anime')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('anime')
 export class AnimeController {
   constructor(private readonly animeService: AnimeService) {}

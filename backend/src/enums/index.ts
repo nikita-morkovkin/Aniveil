@@ -1,9 +1,3 @@
-export enum Role {
-  USER = 'USER',
-  MODERATOR = 'MODERATOR',
-  ADMIN = 'ADMIN',
-}
-
 export enum VideoQualityType {
   Q_360P = 'Q_360P',
   Q_480P = 'Q_480P',

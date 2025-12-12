@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -14,13 +15,16 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { User } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '../enums';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { FavoriteResponseDto } from './dto/favorite-response.dto';
 import { FavoriteService } from './favorite.service';
 
 @ApiTags('Favorites')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('favorites')
 export class FavoriteController {
   constructor(private readonly favoriteService: FavoriteService) {}
