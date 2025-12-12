@@ -17,6 +17,7 @@ import {
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
+import { Public } from './decorators';
 import { CurrentUser } from './decorators/current-user.decorator';
 import {
   LoginDto,
@@ -33,6 +34,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Регистрация нового пользователя' })
@@ -47,6 +49,7 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Вход в систему' })
@@ -60,6 +63,7 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Обновление access токена' })
@@ -117,6 +121,7 @@ export class AuthController {
    *
    * window.location.href = 'http://localhost:3000/auth/google'
    */
+  @Public()
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Авторизация через Google' })
@@ -137,6 +142,7 @@ export class AuthController {
    * http://localhost:3000/auth/google/callback (dev)
    * https://yourdomain.com/auth/google/callback (prod)
    */
+  @Public()
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Callback от Google после авторизации' })

@@ -1,4 +1,12 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import type { Request } from 'express';
+
+type UserPayload = {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+};
 
 /**
  * Декоратор для получения текущего авторизованного пользователя
@@ -20,11 +28,11 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
  * }
  */
 export const CurrentUser = createParamDecorator(
-  (data: string, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
-    const user = request.user;
+  (data: string | undefined, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest<Request>();
+    const user = request.user as UserPayload;
 
     // Если указан конкретный ключ (например, 'email'), возвращаем его
-    return data ? user?.[data] : user;
+    return data ? user?.[data as keyof UserPayload] : user;
   },
 );

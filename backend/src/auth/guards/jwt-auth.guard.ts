@@ -3,8 +3,11 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
+import type { Request } from 'express';
 import { Observable } from 'rxjs';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 /**
  * JWT Guard для защиты роутов
@@ -26,9 +29,31 @@ import { Observable } from 'rxjs';
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
+  constructor(private reflector: Reflector) {
+    super();
+  }
+
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
+    // Swagger UI + assets: в dev удобнее держать публичным
+    const req = context.switchToHttp().getRequest<Request>();
+    const url = (req.originalUrl ?? req.url) || '';
+    if (
+      url.startsWith('/api/docs') ||
+      url.startsWith('/api/docs-json') ||
+      url.startsWith('/api/docs-yaml')
+    ) {
+      return true;
+    }
+
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) {
+      return true;
+    }
     return super.canActivate(context);
   }
 
