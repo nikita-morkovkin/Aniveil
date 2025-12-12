@@ -11,5 +11,6 @@ import { VideoQualityService } from './video-quality.service';
   imports: [PrismaModule, S3Module],
   providers: [VideoQualityService],
   controllers: [VideoQualityController, VideoQualityByIdController],
+  exports: [VideoQualityService],
 })
 export class VideoQualityModule {}

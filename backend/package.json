@@ -22,7 +22,8 @@
     "db:migrate": "npx prisma migrate dev",
     "db:push": "npx prisma db push",
     "db:seed": "npx prisma db seed",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "convert": "ts-node -r tsconfig-paths/register scripts/local-converter.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
@@ -41,6 +42,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "commander": "^14.0.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "fluent-ffmpeg": "^2.1.3",
@@ -62,6 +64,7 @@
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
     "@types/bcrypt": "^6.0.0",
+    "@types/commander": "^2.12.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/fluent-ffmpeg": "^2.1.28",

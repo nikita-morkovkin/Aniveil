@@ -12,6 +12,7 @@ import { EpisodeModule } from './episode/episode.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { S3Module } from './s3/s3.module';
+import { VideoProcessorModule } from './video-processor/video-processor.module';
 import { VideoQualityModule } from './video-quality/video-quality.module';
 
 @Module({
@@ -26,15 +27,14 @@ import { VideoQualityModule } from './video-quality/video-quality.module';
     AnimeModule,
     EpisodeModule,
     VideoQualityModule,
+    VideoProcessorModule,
     CommentModule,
     FavoriteModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    // 1) Сначала проверяем JWT (и уважаем @Public())
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    // 2) Потом проверяем роли там, где есть @Roles()
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
