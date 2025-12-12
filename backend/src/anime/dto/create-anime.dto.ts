@@ -74,7 +74,3 @@ export class CreateAnimeDto {
   @IsArray()
   tags?: Tag[];
 }
-
-
-
-

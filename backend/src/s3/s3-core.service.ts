@@ -15,7 +15,7 @@ import {
   type PresignedPost,
 } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   DeleteFailedException,
@@ -72,12 +72,31 @@ export class S3CoreService implements OnModuleInit {
     return this.s3Client;
   }
 
+  /**
+   * Валидация S3 ключа для предотвращения path traversal атак
+   */
+  private validateKey(key: string): void {
+    if (
+      key.includes('..') ||
+      key.startsWith('/') ||
+      key.includes('//') ||
+      key.includes('\0')
+    ) {
+      throw new S3Exception(
+        'Invalid key: path traversal or invalid characters detected',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   async uploadFile(
     buffer: Buffer,
     key: string,
     contentType: string,
     metadata?: Record<string, string>,
   ): Promise<{ key: string; url: string; etag: string }> {
+    this.validateKey(key);
+
     try {
       const result = await this.withRetry(
         async () => {
@@ -106,6 +125,8 @@ export class S3CoreService implements OnModuleInit {
   }
 
   async deleteFile(key: string): Promise<void> {
+    this.validateKey(key);
+
     try {
       await this.withRetry(
         async () => {
@@ -130,6 +151,8 @@ export class S3CoreService implements OnModuleInit {
   }
 
   async getSignedUrl(key: string, expiresIn = 3600): Promise<string> {
+    this.validateKey(key);
+
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
@@ -146,6 +169,8 @@ export class S3CoreService implements OnModuleInit {
   }
 
   async checkFileExists(key: string): Promise<boolean> {
+    this.validateKey(key);
+
     try {
       const command = new HeadObjectCommand({
         Bucket: this.bucket,
@@ -163,6 +188,8 @@ export class S3CoreService implements OnModuleInit {
   }
 
   async getFileMetadata(key: string) {
+    this.validateKey(key);
+
     try {
       const result = await this.withRetry(
         async () => {
@@ -289,6 +316,9 @@ export class S3CoreService implements OnModuleInit {
   }
 
   async copyFile(sourceKey: string, destinationKey: string) {
+    this.validateKey(sourceKey);
+    this.validateKey(destinationKey);
+
     try {
       const result = await this.withRetry(
         async () => {
@@ -332,7 +362,6 @@ export class S3CoreService implements OnModuleInit {
     maxSizeBytes = 10 * 1024 * 1024 * 1024, // 10GB
     expiresInSeconds = 3600,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const presignedPost: PresignedPost = await createPresignedPost(
       this.s3Client,
       {
@@ -350,9 +379,8 @@ export class S3CoreService implements OnModuleInit {
     );
 
     return {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       url: presignedPost.url,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       fields: presignedPost.fields,
       key,
       expiresIn: expiresInSeconds,
@@ -411,19 +439,6 @@ export class S3CoreService implements OnModuleInit {
   }
 
   // --- Helpers ---
-
-  private formatBytes(bytes: number): string {
-    if (bytes >= 1024 * 1024 * 1024) {
-      return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-    }
-    if (bytes >= 1024 * 1024) {
-      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-    }
-    if (bytes >= 1024) {
-      return `${(bytes / 1024).toFixed(2)} KB`;
-    }
-    return `${bytes} B`;
-  }
 
   private chunkArray<T>(array: T[], size: number): T[][] {
     const chunks: T[][] = [];

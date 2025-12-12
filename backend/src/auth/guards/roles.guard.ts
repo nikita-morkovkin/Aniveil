@@ -40,6 +40,13 @@ export class RolesGuard implements CanActivate {
       );
     }
 
-    return requiredRoles.includes(user.role);
+    const hasRole = requiredRoles.includes(user.role);
+    if (!hasRole) {
+      throw new ForbiddenException(
+        `Требуется одна из ролей: ${requiredRoles.join(', ')}`,
+      );
+    }
+
+    return true;
   }
 }

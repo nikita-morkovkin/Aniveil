@@ -2,10 +2,10 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
-export class CommentFilterDto {
+export class UserFilterDto {
   @ApiPropertyOptional({
-    description: 'Номер страницы',
     example: 1,
+    description: 'Номер страницы',
     default: 1,
   })
   @IsOptional()
@@ -15,14 +15,15 @@ export class CommentFilterDto {
   page?: number = 1;
 
   @ApiPropertyOptional({
-    description: 'Количество элементов на странице',
-    example: 10,
-    default: 10,
+    example: 50,
+    description: 'Количество записей на странице',
+    default: 50,
+    maximum: 100,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  limit?: number = 10;
+  limit?: number = 50;
 }

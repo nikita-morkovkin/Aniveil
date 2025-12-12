@@ -1,20 +1,44 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UserAdminResponseDto } from './dto/user-admin-response.dto';
+import { UserFilterDto } from './dto/user-filter.dto';
 
 @Injectable()
 export class UserAdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAllUsers(): Promise<UserAdminResponseDto[]> {
-    const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-    return plainToInstance(UserAdminResponseDto, users, {
-      excludeExtraneousValues: true,
-    });
+  async findAllUsers(filters: UserFilterDto): Promise<{
+    data: UserAdminResponseDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const { page = 1, limit = 50 } = filters;
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count(),
+    ]);
+
+    return {
+      data: plainToInstance(UserAdminResponseDto, users, {
+        excludeExtraneousValues: true,
+      }),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findUserById(id: string): Promise<UserAdminResponseDto> {
@@ -49,7 +73,14 @@ export class UserAdminService {
     });
   }
 
-  async deleteUser(id: string): Promise<{ message: string }> {
+  async deleteUser(
+    id: string,
+    currentUserId: string,
+  ): Promise<{ message: string }> {
+    if (id === currentUserId) {
+      throw new ForbiddenException('Нельзя удалить свой собственный аккаунт');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id },
     });

@@ -111,7 +111,7 @@ export class CommentService {
     }
 
     const comment = await this.prisma.comment.update({
-      where: { id },
+      where: { id, isDeleted: false },
       data: updateCommentDto,
       include: {
         user: { select: { id: true, username: true, avatarUrl: true } },

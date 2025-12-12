@@ -1,8 +1,9 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import * as fs from 'fs';
+import { readFile, rm, unlink, writeFile } from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import { VideoQualityType } from '../enums';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,12 +15,6 @@ import {
   ConversionStatusDto,
 } from './dto/conversion-status.dto';
 import { HLSConverter } from './hls-converter';
-
-const writeFile = promisify(fs.writeFile);
-const unlink = promisify(fs.unlink);
-const rmdir = promisify(fs.rmdir);
-const readdir = promisify(fs.readdir);
-const readFile = promisify(fs.readFile);
 
 interface ConversionJob {
   jobId: string;
@@ -288,18 +283,7 @@ export class VideoProcessorService {
     if (!fs.existsSync(dirPath)) return;
 
     try {
-      const entries = await readdir(dirPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-        if (entry.isDirectory()) {
-          await this.cleanupTempDir(fullPath);
-        } else {
-          await unlink(fullPath);
-        }
-      }
-
-      await rmdir(dirPath);
+      await rm(dirPath, { recursive: true, force: true });
       this.logger.log(`Cleaned up temp directory: ${dirPath}`);
     } catch (error) {
       this.logger.warn(`Failed to cleanup temp directory ${dirPath}:`, error);
@@ -335,13 +319,29 @@ export class VideoProcessorService {
   }
 
   /**
-   * Очистка старых задач из памяти (можно вызывать периодически)
+   * Очистка старых задач из памяти (вызывается автоматически каждые 6 часов)
    */
+  @Cron(CronExpression.EVERY_6_HOURS)
   cleanupOldJobs(maxAge: number = 3600000): number {
     const now = Date.now();
     let cleaned = 0;
+    const JOB_TIMEOUT_MS = 4 * 60 * 60 * 1000; // 4 часа
 
     for (const [jobId, job] of this.jobs.entries()) {
+      const jobAge = now - job.startedAt.getTime();
+
+      // Помечаем зависшие задачи как failed (в PROCESSING больше 4 часов)
+      if (
+        job.status === ConversionStatus.PROCESSING &&
+        jobAge > JOB_TIMEOUT_MS
+      ) {
+        job.status = ConversionStatus.FAILED;
+        job.error = 'Job timed out after 4 hours';
+        job.completedAt = new Date();
+        this.logger.warn(`Job ${jobId} marked as timed out`);
+      }
+
+      // Удаляем завершённые задачи старше maxAge
       if (
         job.completedAt &&
         now - job.completedAt.getTime() > maxAge &&

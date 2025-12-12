@@ -194,8 +194,13 @@ export class HLSConverter {
     const playlistPath = path.join(qualityDir, 'playlist.m3u8');
     const segmentPattern = path.join(qualityDir, 'segment-%03d.ts');
 
+    // Таймаут 30 минут для конвертации
+    const FFMPEG_TIMEOUT_MS = 30 * 60 * 1000;
+
     return new Promise((resolve, reject) => {
-      ffmpeg(inputPath)
+      let isCompleted = false;
+
+      const command = ffmpeg(inputPath)
         .videoCodec('libx264')
         .audioCodec('aac')
         .addOption('-preset', 'medium')
@@ -220,6 +225,8 @@ export class HLSConverter {
           }
         })
         .on('end', () => {
+          isCompleted = true;
+          clearTimeout(timeout);
           void (async () => {
             try {
               const segments = await this.getSegments(qualityDir);
@@ -240,9 +247,27 @@ export class HLSConverter {
           })();
         })
         .on('error', (err: Error) => {
+          isCompleted = true;
+          clearTimeout(timeout);
           reject(new Error(`FFmpeg error (${quality}): ${err.message}`));
-        })
-        .run();
+        });
+
+      // Таймаут для предотвращения зависания
+      const timeout = setTimeout(() => {
+        if (!isCompleted) {
+          this.logger.error(
+            `FFmpeg timeout for quality ${quality} after ${FFMPEG_TIMEOUT_MS}ms`,
+          );
+          command.kill('SIGKILL');
+          reject(
+            new Error(
+              `FFmpeg conversion timed out for quality ${quality} (${FFMPEG_TIMEOUT_MS}ms)`,
+            ),
+          );
+        }
+      }, FFMPEG_TIMEOUT_MS);
+
+      command.run();
     });
   }
 

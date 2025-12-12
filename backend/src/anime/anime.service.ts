@@ -172,15 +172,26 @@ export class AnimeService {
       tags as string[],
     );
 
+    // Формируем данные для обновления, исключая undefined значения
+    const updateData: Prisma.AnimeUpdateInput = {
+      ...rest,
+      posterUrl: posterUrl !== null ? posterUrl : existingAnime.posterUrl,
+      bannerUrl: bannerUrl !== null ? bannerUrl : existingAnime.bannerUrl,
+    };
+
+    // Обновляем genres только если они явно переданы
+    if (genres !== undefined) {
+      updateData.genres = parsedGenres as Genre[];
+    }
+
+    // Обновляем tags только если они явно переданы
+    if (tags !== undefined) {
+      updateData.tags = parsedTags as Tag[];
+    }
+
     const anime = await this.prisma.anime.update({
       where: { id },
-      data: {
-        ...rest,
-        posterUrl: posterUrl !== null ? posterUrl : existingAnime.posterUrl,
-        bannerUrl: bannerUrl !== null ? bannerUrl : existingAnime.bannerUrl,
-        genres: parsedGenres as Genre[],
-        tags: parsedTags as Tag[],
-      },
+      data: updateData,
     });
     return anime;
   }
@@ -196,23 +207,37 @@ export class AnimeService {
 
     // Удаление постера и баннера из S3, если они существуют
     if (existingAnime.posterUrl) {
-      const posterKey = new URL(existingAnime.posterUrl).pathname.replace(
-        /^\//,
-        '',
-      );
-      await this.s3.deleteFile(posterKey);
+      const posterKey = this.extractS3Key(existingAnime.posterUrl);
+      if (posterKey) {
+        await this.s3.deleteFile(posterKey);
+      }
     }
     if (existingAnime.bannerUrl) {
-      const bannerKey = new URL(existingAnime.bannerUrl).pathname.replace(
-        /^\//,
-        '',
-      );
-      await this.s3.deleteFile(bannerKey);
+      const bannerKey = this.extractS3Key(existingAnime.bannerUrl);
+      if (bannerKey) {
+        await this.s3.deleteFile(bannerKey);
+      }
     }
 
     await this.prisma.anime.delete({
       where: { id },
     });
+  }
+
+  /**
+   * Извлечение S3 ключа из URL или относительного пути
+   */
+  private extractS3Key(url: string | null): string | null {
+    if (!url) return null;
+
+    try {
+      // Пытаемся распарсить как URL
+      const urlObj = new URL(url);
+      return urlObj.pathname.replace(/^\//, '');
+    } catch {
+      // Если не URL, предполагаем что это уже ключ или относительный путь
+      return url.replace(/^\//, '');
+    }
   }
 
   getGenres() {

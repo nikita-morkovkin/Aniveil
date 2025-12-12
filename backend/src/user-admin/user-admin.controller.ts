@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -16,11 +17,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UserAdminResponseDto } from './dto/user-admin-response.dto';
+import { UserFilterDto } from './dto/user-filter.dto';
 import { UserAdminService } from './user-admin.service';
 
 @ApiTags('Admin/Users')
@@ -37,13 +40,12 @@ export class UserAdminController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Список пользователей',
-    type: [UserAdminResponseDto],
+    description: 'Список пользователей с пагинацией',
   })
   @ApiResponse({ status: 401, description: 'Неавторизованный доступ' })
   @ApiResponse({ status: 403, description: 'Доступ запрещен' })
-  async findAllUsers(): Promise<UserAdminResponseDto[]> {
-    return this.userAdminService.findAllUsers();
+  async findAllUsers(@Query() filters: UserFilterDto) {
+    return this.userAdminService.findAllUsers(filters);
   }
 
   @Get(':id')
@@ -88,7 +90,10 @@ export class UserAdminController {
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
   @ApiResponse({ status: 401, description: 'Неавторизованный доступ' })
   @ApiResponse({ status: 403, description: 'Доступ запрещен' })
-  async deleteUser(@Param('id') id: string): Promise<{ message: string }> {
-    return this.userAdminService.deleteUser(id);
+  async deleteUser(
+    @Param('id') id: string,
+    @CurrentUser('id') currentUserId: string,
+  ): Promise<{ message: string }> {
+    return this.userAdminService.deleteUser(id, currentUserId);
   }
 }

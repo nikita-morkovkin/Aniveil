@@ -2,11 +2,13 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  OnModuleDestroy,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -17,12 +19,71 @@ import {
 } from './dto';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleDestroy {
+  // Временное хранилище кодов авторизации (в продакшене лучше Redis)
+  private readonly authCodes = new Map<
+    string,
+    { tokens: TokenResponseDto; expiresAt: number }
+  >();
+  private readonly AUTH_CODE_TTL = 30000; // 30 секунд
+  private cleanupInterval: ReturnType<typeof setInterval>;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    // Очистка истекших кодов каждые 30 секунд
+    this.cleanupInterval = setInterval(() => this.cleanupAuthCodes(), 30000);
+  }
+
+  onModuleDestroy() {
+    clearInterval(this.cleanupInterval);
+  }
+
+  /**
+   * Сохранение токенов под временным кодом (для безопасного OAuth callback)
+   */
+  async storeAuthCode(tokens: TokenResponseDto): Promise<string> {
+    const code = crypto.randomUUID();
+    this.authCodes.set(code, {
+      tokens,
+      expiresAt: Date.now() + this.AUTH_CODE_TTL,
+    });
+    return code;
+  }
+
+  /**
+   * Обмен временного кода на токены
+   */
+  async exchangeAuthCode(code: string): Promise<TokenResponseDto> {
+    const stored = this.authCodes.get(code);
+
+    if (!stored) {
+      throw new UnauthorizedException(
+        'Невалидный или истекший код авторизации',
+      );
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      this.authCodes.delete(code);
+      throw new UnauthorizedException('Код авторизации истек');
+    }
+
+    // Удаляем код после использования (одноразовый)
+    this.authCodes.delete(code);
+
+    return stored.tokens;
+  }
+
+  private cleanupAuthCodes(): void {
+    const now = Date.now();
+    for (const [code, data] of this.authCodes.entries()) {
+      if (now > data.expiresAt) {
+        this.authCodes.delete(code);
+      }
+    }
+  }
 
   async register(dto: RegisterDto): Promise<TokenResponseDto> {
     const existingUser = await this.prisma.user.findUnique({
@@ -68,6 +129,7 @@ export class AuthService {
     googleId: string,
     email: string,
     username: string,
+    avatarUrl?: string | null,
   ): Promise<TokenResponseDto> {
     let user = await this.prisma.user.findUnique({
       where: { googleId },
@@ -90,6 +152,7 @@ export class AuthService {
           username,
           googleId,
           password: null, // Для Google OAuth пароль не нужен
+          avatarUrl: avatarUrl ?? null,
         },
       });
     }
@@ -203,6 +266,24 @@ export class AuthService {
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // +7 дней
+
+    // Ограничиваем количество активных refresh токенов (макс 5 на пользователя)
+    const MAX_REFRESH_TOKENS = 5;
+    const existingTokens = await this.prisma.refreshToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (existingTokens.length >= MAX_REFRESH_TOKENS) {
+      // Удаляем старые токены, оставляя место для нового
+      const tokensToDelete = existingTokens.slice(
+        0,
+        existingTokens.length - MAX_REFRESH_TOKENS + 1,
+      );
+      await this.prisma.refreshToken.deleteMany({
+        where: { id: { in: tokensToDelete.map((t) => t.id) } },
+      });
+    }
 
     await this.prisma.refreshToken.create({
       data: {

@@ -4,6 +4,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import {
+  PrismaClientExceptionFilter,
+  PrismaClientInitializationExceptionFilter,
+  PrismaClientValidationExceptionFilter,
+} from './prisma/prisma-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -35,11 +40,18 @@ async function bootstrap() {
     }),
   );
 
+  // Глобальные фильтры исключений для Prisma
+  app.useGlobalFilters(
+    new PrismaClientExceptionFilter(),
+    new PrismaClientInitializationExceptionFilter(),
+    new PrismaClientValidationExceptionFilter(),
+  );
+
   // Настройка Swagger документации
   const config = new DocumentBuilder()
     .setTitle('Aniveil API')
     .setDescription(
-      'API документация для Aniveil - платформы для просмотра аниме',
+      'API документация для Aniveil - платформы для просмотра аниме для взрослых',
     )
     .setVersion('1.0')
     .addBearerAuth() // Добавляет возможность авторизации в Swagger UI
@@ -56,4 +68,4 @@ async function bootstrap() {
   console.log(`📚 Swagger документация: http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+void bootstrap();

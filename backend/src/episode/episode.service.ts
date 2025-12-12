@@ -30,21 +30,24 @@ export class EpisodeService {
       );
     }
 
-    const episode = await this.prisma.episode.create({
-      data: {
-        ...createEpisodeDto,
-        animeId,
-      },
-    });
+    // Используем транзакцию для атомарного создания эпизода и обновления счетчика
+    return await this.prisma.$transaction(async (tx) => {
+      const episode = await tx.episode.create({
+        data: {
+          ...createEpisodeDto,
+          animeId,
+        },
+      });
 
-    await this.prisma.anime.update({
-      where: { id: animeId },
-      data: {
-        episodesCount: { increment: 1 },
-      },
-    });
+      await tx.anime.update({
+        where: { id: animeId },
+        data: {
+          episodesCount: { increment: 1 },
+        },
+      });
 
-    return episode;
+      return episode;
+    });
   }
 
   async findAll(animeId: string) {
@@ -118,15 +121,18 @@ export class EpisodeService {
       throw new NotFoundException(`Эпизод с ID '${id}' не найден.`);
     }
 
-    await this.prisma.episode.delete({
-      where: { id },
-    });
+    // Используем транзакцию для атомарного удаления эпизода и обновления счетчика
+    await this.prisma.$transaction(async (tx) => {
+      await tx.episode.delete({
+        where: { id },
+      });
 
-    await this.prisma.anime.update({
-      where: { id: existingEpisode.animeId },
-      data: {
-        episodesCount: { decrement: 1 },
-      },
+      await tx.anime.update({
+        where: { id: existingEpisode.animeId },
+        data: {
+          episodesCount: { decrement: 1 },
+        },
+      });
     });
   }
 }

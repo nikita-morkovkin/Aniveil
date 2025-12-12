@@ -118,7 +118,8 @@ export class VideoQualityService {
     }
 
     // Удаление HLS файлов из S3 (плейлист и сегменты)
-    const s3KeyPrefix = existingQuality.hlsUrl.replace('/playlist.m3u8', '');
+    // hlsUrl имеет формат: anime/{animeId}/episodes/{episodeId}/{quality}/playlist.m3u8
+    const s3KeyPrefix = existingQuality.hlsUrl.replace(/\/?playlist\.m3u8$/, '');
     await this.s3.deleteByPrefix(s3KeyPrefix);
 
     await this.prisma.videoQuality.delete({

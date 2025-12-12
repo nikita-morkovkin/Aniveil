@@ -20,6 +20,7 @@ import { AuthService } from './auth.service';
 import { Public } from './decorators';
 import { CurrentUser } from './decorators/current-user.decorator';
 import {
+  ExchangeCodeDto,
   LoginDto,
   RefreshTokenDto,
   RegisterDto,
@@ -28,6 +29,15 @@ import {
 } from './dto';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+
+type GoogleAuthRequest = Request & {
+  user: {
+    googleId: string;
+    email: string;
+    username: string;
+    avatarUrl?: string | null;
+  };
+};
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -148,20 +158,47 @@ export class AuthController {
   @ApiOperation({ summary: 'Callback от Google после авторизации' })
   @ApiResponse({
     status: 302,
-    description: 'Перенаправление на фронтенд с токенами',
+    description: 'Перенаправление на фронтенд с временным кодом',
   })
-  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
-    const { googleId, email, username } = req.user as {
-      googleId: string;
-      email: string;
-      username: string;
-      avatarUrl?: string | null;
-    };
-    const tokens = await this.authService.googleAuth(googleId, email, username);
+  async googleAuthCallback(
+    @Req() req: GoogleAuthRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { googleId, email, username, avatarUrl } = req.user;
+    const tokens = (await this.authService.googleAuth(
+      googleId,
+      email,
+      username,
+      avatarUrl,
+    )) as unknown as TokenResponseDto;
+
+    // Сохраняем токены под временным кодом (безопаснее чем передавать в URL)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const authCode = (await this.authService.storeAuthCode(
+      tokens,
+    )) as unknown as string;
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const redirectUrl = `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`;
+    const redirectUrl = `${frontendUrl}/auth/callback?code=${authCode}`;
 
     res.redirect(redirectUrl);
+  }
+
+  /**
+   * Обмен временного кода на токены
+   * Фронтенд вызывает этот endpoint после редиректа с Google OAuth
+   */
+  @Public()
+  @Post('exchange-code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Обмен временного кода на токены' })
+  @ApiResponse({
+    status: 200,
+    description: 'Токены получены',
+    type: TokenResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Невалидный или истекший код' })
+  async exchangeCode(@Body() dto: ExchangeCodeDto): Promise<TokenResponseDto> {
+    return await this.authService.exchangeAuthCode(dto.code);
   }
 }
